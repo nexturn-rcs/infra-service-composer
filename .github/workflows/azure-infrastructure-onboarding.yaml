@@ -75,8 +75,10 @@ jobs:
             echo "Resource group folder already exists: $TARGET_DIR"
             exit 1
           fi
-
-            mkdir -p "$BASE_DIR/resource_groups/$TARGET_DIR"
+          mkdir -p "$BASE_DIR"
+          mkdir -p "$BASE_DIR/resource_groups"
+          cd "$BASE_DIR" || exit 1
+            mkdir -p "$TARGET_DIR"
 
           pwd && ls -la "$BASE_DIR/resource_groups/$TARGET_DIR"
 

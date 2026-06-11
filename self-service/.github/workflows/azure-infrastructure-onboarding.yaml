@@ -15,6 +15,10 @@ jobs:
     permissions:
       contents: write
     steps:
+      template_rg:
+        description: 'Existing resource group to copy Terraform files from (example: rg-example-dev)'
+        required: false
+        default: 'rg-example-dev'
       - name: Checkout repo
         uses: actions/checkout@v4
 
@@ -23,6 +27,7 @@ jobs:
         run: |
           set -euo pipefail
           RG="${{ github.event.inputs.resource_group }}"
+          TEMPLATE_RG="${{ github.event.inputs.template_rg }}"
           BASE_BRANCH="${{ github.event.inputs.base_branch }}"
           TARGET_DIR="self-service/azure-infrastructure/resource_groups/${RG}"
 
@@ -51,10 +56,25 @@ jobs:
           resource "azurerm_resource_group" "main" {
             name     = var.resource_group_name
             location = var.location
+# Resource group: ${RG}
+
+Add Terraform files for this resource group under this directory.
+EOF
           }
           EOF
+# example variables for ${RG}
+resource_group_name = "${RG}"
+location = "<region>"
+EOF
 
           git config user.name "github-actions[bot]"
+// Terraform resources for ${RG}
+// Replace variables as needed.
+resource "azurerm_resource_group" "main" {
+  name     = var.resource_group_name
+  location = var.location
+}
+EOF
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           BRANCH="add-rg-${RG}-$(date +%s)"

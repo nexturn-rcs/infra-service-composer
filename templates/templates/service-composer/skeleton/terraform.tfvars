@@ -1,8 +1,0 @@
-project_name     = "${{ values.projectName }}"
-environment      = "${{ values.environment }}"
-resource_group   = "${{ values.resourceGroup }}"
-location         = "${{ values.location }}"
-enable_aks       = "${{ values.enableAKS }}"
-enable_storage   = "${{ values.enableStorage }}"
-enable_sql       = "${{ values.enableSQL }}"
-enable_key_vault = "${{ values.enableKeyVault }}"

@@ -1,0 +1,8 @@
+project_name     = "nextops-stage"
+environment      = "qa"
+resource_group   = "rg-nextops-stage-qa"
+location         = "eastus"
+enable_aks       = "true"
+enable_storage   = "false"
+enable_sql       = "false"
+enable_key_vault = "false"

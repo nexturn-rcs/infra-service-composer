@@ -1,0 +1,8 @@
+project_name     = "nextops-demo"
+environment      = "dev"
+resource_group   = "rg-nextops-demo-dev"
+location         = "eastus"
+enable_aks       = "true"
+enable_storage   = "true"
+enable_sql       = "false"
+enable_key_vault = "true"

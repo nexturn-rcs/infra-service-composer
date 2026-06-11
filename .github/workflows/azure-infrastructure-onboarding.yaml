@@ -6,27 +6,35 @@ on:
       project_name:
         description: 'Project name (property)'
         required: true
+        default: 'myproject'
       service_name:
         description: 'Service name (property)'
         required: true
+        default: 'myservice'
       tech_stack:
         description: 'Tech stack (e.g. python)'
         required: true
+        default: 'python'
       python_version:
         description: 'Python version (e.g. 3.11)'
         required: true
+        default: '3.11'
       deploy_to:
         description: 'Deployment target (e.g. AKS)'
         required: true
+        default: 'AKS'
       location:
         description: 'Azure region (e.g. eastus)'
         required: true
+        default: 'eastus'
       environment:
         description: 'Deployment environment (e.g. dev/staging/prod)'
         required: true
+        default: 'dev'
       resource_group:
         description: 'Optional explicit resource group name (if not set, workflow will derive one)'
         required: false
+        default: 'demo1-rg-selfservice'
       tf_path:
         description: 'Path to Terraform templates (working directory)'
         required: false
@@ -38,14 +46,7 @@ jobs:
     permissions:
       contents: write
     env:
-      #AZURE_CORE_OUTPUT: none
-      #ARM_USE_AZURECLI: 'true'
-      #AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
-      #AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-      #AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-      #AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-     # AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-     FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true
+     FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
     steps:
       - name: Azure Login
         uses: azure/login@v2

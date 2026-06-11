@@ -1,0 +1,8 @@
+# example variables for rg-new
+resource_group_name = "rg-new"
+location = "<region>"
+project_name = "otis-demo"
+service_name = "demo-service-creation-aks"
+tech_stack = "python"
+python_version = "3.14.6"
+deploy_to = "AKS"

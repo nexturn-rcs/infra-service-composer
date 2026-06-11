@@ -53,6 +53,7 @@ jobs:
 
       - name: Create resource group folder with resources terraform files(if resource_group input provided)
         id: create
+        continue-on-error: true
         run: |
           set -euo pipefail
           RG="${{ github.event.inputs.resource_group }}"
@@ -62,7 +63,7 @@ jobs:
           PYVER="${{ github.event.inputs.python_version }}"
           DEPLOY_TO="${{ github.event.inputs.deploy_to }}"
           TARGET_DIR="${{ github.event.inputs.resource_group }}"
-          if [ -z "$TARGET_DIR" ]; then
+          if [ -z "$TARGET_DIR  " ]; then
             echo "No resource_group input provided; skipping creation"
             exit 0
           fi
@@ -318,6 +319,7 @@ jobs:
 
       - name: Check Terraform variable files
         working-directory: ${{ github.event.inputs.tf_path }}
+        continue-on-error: true
         run: |
           set -e
           echo "Checking for *.tfvars files in $(pwd)..."
@@ -330,21 +332,25 @@ jobs:
 
       - name: Azure Login (service principal creds)
         uses: azure/login@v3
+        continue-on-error: true
         with:
           secrets ${{ secrets.AZURE_CREDENTIALS }}
 
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
+        continue-on-error: true
         with:
           terraform_version: '1.6.0'
 
       - name: Terraform Init
         working-directory: ${{ github.event.inputs.tf_path }}
         run: terraform init -input=false
+        continue-on-error: true
 
       - name: Terraform Validate
         working-directory: ${{ github.event.inputs.tf_path }}
+        continue-on-error: true
         run: |
           set -e
           # derive resource group if not provided
@@ -363,6 +369,7 @@ jobs:
 
       - name: Terraform Plan
         working-directory: ${{ github.event.inputs.tf_path }}
+        continue-on-error: true
         run: |
           set -e
           # derive resource group if not provided

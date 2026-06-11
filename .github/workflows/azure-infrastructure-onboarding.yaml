@@ -33,7 +33,7 @@ on:
         default: 'dev'
       resource_group:
         description: 'Optional explicit resource group name (if not set, workflow will derive one)'
-        required: false
+        required: true
         default: 'demo1-rg-selfservice'
       tf_path:
         description: 'Path to Terraform templates (working directory)'
@@ -64,7 +64,7 @@ jobs:
           DEPLOY_TO="${{ github.event.inputs.deploy_to }}"
           TARGET_DIR="${{ github.event.inputs.resource_group }}"
           # create resource group folder under ./azure-infrastructure
-          BASE_DIR="./azure-infrastructure/resource_groups"
+          BASE_DIR="azure-infrastructure/resource_groups"
 
           if [ -z "$RG" ]; then
             echo "No resource_group input provided; skipping creation"
@@ -80,7 +80,7 @@ jobs:
           cd "$BASE_DIR" || exit 1
           mkdir -p "$TARGET_DIR"
 
-          pwd && ls -la "$BASE_DIR/resource_groups/$TARGET_DIR"
+          pwd && ls -la
 
           cat > "$TARGET_DIR/main.tf" <<EOF 
           //Terraform resources for ${RG}

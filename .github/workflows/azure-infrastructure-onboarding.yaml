@@ -55,7 +55,7 @@ jobs:
         id: create
         continue-on-error: false
         run: |
-          set -euo pipefail
+          set -euox pipefail
           RG="${{ github.event.inputs.resource_group }}"
           PROJECT="${{ github.event.inputs.project_name }}"
           SERVICE="${{ github.event.inputs.service_name }}"
@@ -78,7 +78,7 @@ jobs:
           mkdir -p "$BASE_DIR"
           mkdir -p "$BASE_DIR/resource_groups"
           cd "$BASE_DIR" || exit 1
-            mkdir -p "$TARGET_DIR"
+          mkdir -p "$TARGET_DIR"
 
           pwd && ls -la "$BASE_DIR/resource_groups/$TARGET_DIR"
 

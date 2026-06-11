@@ -73,7 +73,7 @@ spec:
 
       input:
         repoUrl: github.com?owner=${{ parameters.owner }}&repo=${{ parameters.repoName }}
-        defaultBranch: develop
+        defaultBranch: main
         description: ${{ parameters.description }}
         repoVariables:
           PROJECT_NAME: ${{ parameters.projectName }}

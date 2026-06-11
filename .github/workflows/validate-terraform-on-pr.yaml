@@ -1,0 +1,40 @@
+name: Validate Terraform on PR
+
+on:
+  pull_request:
+    paths:
+      - 'self-service/azure-infrastructure/resource_groups/**'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: '1.6.0'
+
+      - name: Find resource group directories and validate
+        run: |
+          set -euo pipefail
+          BASE=./self-service/azure-infrastructure/resource_groups
+          if [ ! -d "$BASE" ]; then
+            echo "No resource_groups directory found, skipping"
+            exit 0
+          fi
+          for d in "$BASE"/*; do
+            if [ -d "$d" ]; then
+              echo "Checking directory: $d"
+              shopt -s nullglob || true
+              tf_files=("$d"/*.tf)
+              if [ ${#tf_files[@]} -eq 0 ]; then
+                echo "No .tf files in $d, skipping"
+                continue
+              fi
+              echo "Running terraform init/validate in $d"
+              (cd "$d" && terraform init -input=false -upgrade)
+              (cd "$d" && terraform validate) || (echo "Validation failed in $d" && exit 1)
+            fi
+          done

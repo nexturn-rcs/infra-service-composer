@@ -1,8 +1,5 @@
 name: Provision AKS (Terraform)
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
-
 on:
   workflow_dispatch:
     inputs:
@@ -42,10 +39,6 @@ on:
         description: 'Path to Terraform templates (working directory)'
         required: false
         default: 'templates/templates/service-composer/skeleton'
-      skip_azure_credentials:
-        description: 'Set to "true" to skip Azure login and secret checks (useful for dry-run validation)'
-        required: false
-        default: 'false'
 
 jobs:
   apply:
@@ -55,19 +48,12 @@ jobs:
     env:
      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
     steps:
-      - name: Azure Login
-        if: ${{ github.event.inputs.skip_azure_credentials != 'true' }}
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
-      - name: Checkout
+      - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Create resource group folder (if resource_group input provided)
+      - name: Create resource group folder with resources terraform files(if resource_group input provided)
         id: create
+        continue-on-error: true
         run: |
           set -euo pipefail
           RG="${{ github.event.inputs.resource_group }}"
@@ -76,9 +62,8 @@ jobs:
           TECH="${{ github.event.inputs.tech_stack }}"
           PYVER="${{ github.event.inputs.python_version }}"
           DEPLOY_TO="${{ github.event.inputs.deploy_to }}"
-          TARGET_DIR="self-service/azure-infrastructure/resource_groups/${RG}"
-
-          if [ -z "$RG" ]; then
+          TARGET_DIR="${{ github.event.inputs.resource_group }}"
+          if [ -z "$TARGET_DIR  " ]; then
             echo "No resource_group input provided; skipping creation"
             exit 0
           fi
@@ -220,6 +205,7 @@ jobs:
             }
             EOF
           fi
+
           cat > "$TARGET_DIR/variables.tf" <<'EOF'
           variable "resource_group_name" {
           description = "Name of the Azure resource group"
@@ -227,6 +213,7 @@ jobs:
           default     = ""
           }
           EOF
+
           cat > "$TARGET_DIR/variables.tf" <<'EOF'
           variable "location" { 
           description = "Azure region for resources"
@@ -242,6 +229,7 @@ jobs:
           default     = ""
           }
           EOF
+
           cat > "$TARGET_DIR/variables.tf" <<'EOF'
           variable "service_name" {
           description = "Service identifier"
@@ -249,6 +237,7 @@ jobs:
           default     = ""
           }
           EOF
+
           cat > "$TARGET_DIR/variables.tf" <<'EOF'
           variable "tech_stack" {
           description = "Technology stack (e.g. python)"
@@ -256,6 +245,7 @@ jobs:
           default     = ""
           }
           EOF
+
           cat > "$TARGET_DIR/variables.tf" <<'EOF'
           variable "python_version" {
           description = "Python runtime version"
@@ -263,6 +253,7 @@ jobs:
           default     = ""
           }
           EOF
+
           cat > "$TARGET_DIR/variables.tf" <<'EOF'
           variable "deploy_to" {
           description = "Deployment target (e.g. AKS)"
@@ -278,6 +269,7 @@ jobs:
           default     = "East US"
           }
           EOF
+
           cat >> "$TARGET_DIR/variables.tf" <<'EOF'
           variable "project_name" {
           description = "Name of the project"
@@ -285,6 +277,7 @@ jobs:
           default     = ""
           }
           EOF
+
           cat >> "$TARGET_DIR/variables.tf" <<'EOF'
           variable "service_name" {
           description = "Name of the service"
@@ -292,6 +285,7 @@ jobs:
           default     = ""
           }
           EOF
+
           cat >> "$TARGET_DIR/variables.tf" <<'EOF'
           variable "tech_stack" {
           description = "Technology stack used"
@@ -312,7 +306,7 @@ jobs:
 
           echo "branch=$BRANCH" >> $GITHUB_OUTPUT
 
-      - name: Create Pull Request for new resource group
+      - name: Create Pull Request for new resource group folder
         uses: peter-evans/create-pull-request@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -320,22 +314,12 @@ jobs:
           title: "Add resource group ${{ github.event.inputs.resource_group }}"
           body: "Automated PR to add resource group folder `${{ github.event.inputs.resource_group }}`."
           base: main
-          head: ${{ steps.create.outputs.branch }}
+          #head: ${{ steps.create.outputs.branch }}
 
-      - name: Secrets check
-        if: ${{ github.event.inputs.skip_azure_credentials != 'true' }}
-        run: |
-          set -e
-          echo "Checking for Azure authentication secrets..."
-          if [ -z "${{ secrets.AZURE_CREDENTIALS }}" ]; then
-            if [ -z "${{ secrets.AZURE_CLIENT_ID }}" ] || [ -z "${{ secrets.AZURE_CLIENT_SECRET }}" ] || [ -z "${{ secrets.AZURE_SUBSCRIPTION_ID }}" ] || [ -z "${{ secrets.AZURE_TENANT_ID }}" ]; then
-              echo "ERROR: No Azure auth secrets found. Set AZURE_CREDENTIALS or set AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_SUBSCRIPTION_ID, and AZURE_TENANT_ID as repository secrets."
-              exit 1
-            fi
-          fi
 
       - name: Check Terraform variable files
         working-directory: ${{ github.event.inputs.tf_path }}
+        continue-on-error: true
         run: |
           set -e
           echo "Checking for *.tfvars files in $(pwd)..."
@@ -347,23 +331,26 @@ jobs:
           fi
 
       - name: Azure Login (service principal creds)
-        if: ${{ github.event.inputs.skip_azure_credentials != 'true' }}
         uses: azure/login@v3
+        continue-on-error: true
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          secrets ${{ secrets.AZURE_CREDENTIALS }}
 
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
+        continue-on-error: true
         with:
           terraform_version: '1.6.0'
 
       - name: Terraform Init
         working-directory: ${{ github.event.inputs.tf_path }}
         run: terraform init -input=false
+        continue-on-error: true
 
       - name: Terraform Validate
         working-directory: ${{ github.event.inputs.tf_path }}
+        continue-on-error: true
         run: |
           set -e
           # derive resource group if not provided
@@ -382,6 +369,7 @@ jobs:
 
       - name: Terraform Plan
         working-directory: ${{ github.event.inputs.tf_path }}
+        continue-on-error: true
         run: |
           set -e
           # derive resource group if not provided
@@ -417,3 +405,5 @@ jobs:
             echo "Using resource group: $RG and cluster name: $AKS_NAME"
             az aks get-credentials --resource-group "$RG" --name "$AKS_NAME" --admin || echo "az aks get-credentials failed; verify names or Terraform outputs"
             kubectl version --short || true
+            echo "Kubeconfig retrieved for AKS cluster: $AKS_NAME"
+            

@@ -64,7 +64,7 @@ jobs:
           DEPLOY_TO="${{ github.event.inputs.deploy_to }}"
           # create resource group folder under ./azure-infrastructure
           BASE_DIR="./azure-infrastructure"
-          TARGET_DIR="$BASE_DIR/${RG}"
+          TARGET_DIR="${{ github.event.inputs.resource_group }}"
 
           if [ -z "$RG" ]; then
             echo "No resource_group input provided; skipping creation"
@@ -76,7 +76,7 @@ jobs:
             exit 1
           fi
 
-          mkdir -p "$TARGET_DIR"
+          mkdir -p "$BASE_DIR/$TARGET_DIR/resource_groups"
 
           cat > "$TARGET_DIR/main.tf" <<EOF 
           //Terraform resources for ${RG}

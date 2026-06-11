@@ -1,7 +1,11 @@
 name: Provision AKS (Terraform)
 
-# Manual dispatch enabled
+# Triggers: manual dispatch and push to selected branches
 on:
+  push:
+    branches:
+      - main
+      - selfservice-dev
   workflow_dispatch:
     inputs:
       project_name:

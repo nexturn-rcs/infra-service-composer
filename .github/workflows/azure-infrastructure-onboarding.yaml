@@ -82,22 +82,9 @@ jobs:
 
           mkdir -p "$TARGET_DIR"
 
-          cat > "$TARGET_DIR/README.md" <<EOF
-# Resource group: ${RG}
+            printf '%s\n\n%s\n' "# Resource group: ${RG}" "Add Terraform files for this resource group under this directory." > "$TARGET_DIR/README.md"
 
-Add Terraform files for this resource group under this directory.
-EOF
-
-cat > "$TARGET_DIR/terraform.tfvars.example" <<EOF
-# example variables for ${RG}
-resource_group_name = "${RG}"
-location = "<region>"
-project_name = "${PROJECT}"
-service_name = "${SERVICE}"
-tech_stack = "${TECH}"
-python_version = "${PYVER}"
-deploy_to = "${DEPLOY_TO}"
-EOF
+            printf '%s\n' "# example variables for ${RG}" "resource_group_name = \"${RG}\"" "location = \"<region>\"" "project_name = \"${PROJECT}\"" "service_name = \"${SERVICE}\"" "tech_stack = \"${TECH}\"" "python_version = \"${PYVER}\"" "deploy_to = \"${DEPLOY_TO}\"" > "$TARGET_DIR/terraform.tfvars.example"
 
           cat > "$TARGET_DIR/main.tf" <<EOF
 // Terraform resources for ${RG}

@@ -310,15 +310,15 @@ jobs:
           echo "branch=$BRANCH" >> $GITHUB_OUTPUT
 
       - name: Create Pull Request for new resource group folder
-        uses: peter-evans/create-pull-request@v4
+        uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "Add resource group ${{ github.event.inputs.resource_group }}"
           title: "Add resource group ${{ github.event.inputs.resource_group }}"
           body: "Automated PR to add resource group folder `${{ github.event.inputs.resource_group }}`."
           base: main
-          #head: ${{ steps.create.outputs.branch }}
-
+          branch: create-pull-request/patch
+          branch-suffix: random
 
       - name: Check Terraform variable files
         working-directory: ${{ github.event.inputs.tf_path }}

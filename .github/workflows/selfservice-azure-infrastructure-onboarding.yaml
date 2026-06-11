@@ -73,7 +73,7 @@ jobs:
             exit 1
           fi
 
-          mkdir -p "$TARGET_DIR/resource_groups"
+          mkdir -p "$BASE_DIR/$TARGET_DIR/resource_groups/${RG}"
 
           cat > "$TARGET_DIR/main.tf" <<EOF 
           //Terraform resources for ${RG}

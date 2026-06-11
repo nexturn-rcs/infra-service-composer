@@ -1,0 +1,167 @@
+name: Terraform Operations
+
+on:
+  workflow_dispatch:
+    inputs:
+      resource_group:
+        description: 'Resource group name (must match directory under resource_groups/)'
+        required: true
+        type: string
+      operation:
+        description: 'Terraform operation to perform'
+        required: true
+        type: choice
+        options:
+          - plan
+          - apply
+          - destroy
+      auto_approve:
+        description: 'Auto-approve for apply/destroy (use with caution)'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+  ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+  TF_VERSION: '1.12.1'
+  BACKEND_RESOURCE_GROUP: rg-nextops-otis-tfstate
+  BACKEND_STORAGE_ACCOUNT: nextopsotistfstate
+  BACKEND_CONTAINER: tfstate
+
+jobs:
+  terraform-operation:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+      
+      - name: Validate Resource Group Directory
+        id: validate
+        run: |
+          RESOURCE_GROUP="${{ github.event.inputs.resource_group }}"
+          TF_DIR="resource_groups/${RESOURCE_GROUP}"
+          
+          if [ ! -d "$TF_DIR" ]; then
+            echo "❌ Error: Directory '$TF_DIR' does not exist"
+            echo "Please ensure the directory structure follows: resource_groups/<resource-group-name>/*.tf"
+            exit 1
+          fi
+          
+          if [ ! -f "$TF_DIR/main.tf" ] && [ ! -f "$TF_DIR/backend.tf" ]; then
+            echo "⚠️  Warning: No main.tf or backend.tf found in $TF_DIR"
+          fi
+          
+          echo "tf_dir=$TF_DIR" >> $GITHUB_OUTPUT
+          echo "state_key=${RESOURCE_GROUP}.tfstate" >> $GITHUB_OUTPUT
+          echo "✅ Directory validated: $TF_DIR"
+      
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: |
+            {
+              "clientId": "${{ secrets.AZURE_CLIENT_ID }}",
+              "clientSecret": "${{ secrets.AZURE_CLIENT_SECRET }}",
+              "subscriptionId": "${{ secrets.AZURE_SUBSCRIPTION_ID }}",
+              "tenantId": "${{ secrets.AZURE_TENANT_ID }}"
+            }
+      
+      - name: Terraform Init
+        id: init
+        working-directory: ${{ steps.validate.outputs.tf_dir }}
+        run: |
+          echo "Initializing Terraform for resource group: ${{ github.event.inputs.resource_group }}"
+          terraform init
+          
+          echo "✅ Terraform initialized successfully"
+      
+      - name: Terraform Validate
+        id: validate_tf
+        working-directory: ${{ steps.validate.outputs.tf_dir }}
+        run: |
+          terraform validate
+          echo "✅ Terraform configuration is valid"
+      
+      - name: Terraform Plan
+        id: plan
+        if: ${{ github.event.inputs.operation == 'plan' || github.event.inputs.operation == 'apply' || github.event.inputs.operation == 'destroy' }}
+        working-directory: ${{ steps.validate.outputs.tf_dir }}
+        run: |
+          if [ "${{ github.event.inputs.operation }}" == "destroy" ]; then
+            echo "Running terraform plan -destroy..."
+            terraform plan -destroy -out=tfplan -detailed-exitcode || PLAN_EXIT_CODE=$?
+          else
+            echo "Running terraform plan..."
+            terraform plan -out=tfplan -detailed-exitcode || PLAN_EXIT_CODE=$?
+          fi
+          
+          # Exit codes: 0 = no changes, 1 = error, 2 = changes present
+          if [ "${PLAN_EXIT_CODE:-0}" -eq 1 ]; then
+            echo "❌ Terraform plan failed"
+            exit 1
+          elif [ "${PLAN_EXIT_CODE:-0}" -eq 2 ]; then
+            echo "plan_has_changes=true" >> $GITHUB_OUTPUT
+            echo "✅ Plan completed with changes"
+          else
+            echo "plan_has_changes=false" >> $GITHUB_OUTPUT
+            echo "✅ Plan completed with no changes"
+          fi
+      
+      - name: Upload Plan
+        if: ${{ github.event.inputs.operation == 'apply' || github.event.inputs.operation == 'destroy' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan-${{ github.event.inputs.resource_group }}
+          path: ${{ steps.validate.outputs.tf_dir }}/tfplan
+          retention-days: 5
+      
+      - name: Terraform Apply
+        id: apply
+        if: ${{ github.event.inputs.operation == 'apply' && (github.event.inputs.auto_approve == 'true' || steps.plan.outputs.plan_has_changes == 'false') }}
+        working-directory: ${{ steps.validate.outputs.tf_dir }}
+        run: |
+          
+          if [ "${{ github.event.inputs.auto_approve }}" == "true" ]; then
+            echo "Applying Terraform changes with auto-approval..."
+            terraform apply tfplan
+            echo "✅ Terraform apply completed successfully"
+          else
+            echo "⚠️  Auto-approve is disabled. Please enable it to apply changes."
+            exit 1
+          fi
+      
+      - name: Terraform Destroy
+        id: destroy
+        if: ${{ github.event.inputs.operation == 'destroy' && github.event.inputs.auto_approve == 'true' }}
+        working-directory: ${{ steps.validate.outputs.tf_dir }}
+        run: |
+          echo "Destroying Terraform-managed infrastructure..."
+          terraform apply tfplan
+          echo "✅ Terraform destroy completed successfully"
+      
+      - name: Output Summary
+        if: always()
+        run: |
+          echo "=========================================="
+          echo "Terraform Operation Summary"
+          echo "=========================================="
+          echo "Resource Group: ${{ github.event.inputs.resource_group }}"
+          echo "Operation: ${{ github.event.inputs.operation }}"
+          echo "Directory: ${{ steps.validate.outputs.tf_dir }}"
+          echo "State File: ${{ steps.validate.outputs.state_key }}"
+          echo "Auto-Approve: ${{ github.event.inputs.auto_approve }}"
+          echo "=========================================="
+      
+      - name: Azure Logout
+        if: always()
+        run: |
+          az logout

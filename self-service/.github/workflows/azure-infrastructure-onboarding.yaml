@@ -3,15 +3,11 @@ name: Provision AKS (Terraform)
 name: Add resource group and open PR
 
 on:
-  workflow_dispatch:
-    inputs:
-      resource_group:
-        description: 'Resource group directory name to create under self-service/azure-infrastructure/resource_groups'
-        required: true
-      base_branch:
-        description: 'Target branch for the PR'
-        required: false
-        default: 'main'
+  push:
+    branches:
+      - develop
+
+
 
 jobs:
   create-resource-group:

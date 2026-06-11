@@ -1,0 +1,57 @@
+# Example Terraform Variables File
+# Copy this file to terraform.tfvars and update with your values
+# WARNING: Never commit terraform.tfvars with sensitive data to version control!
+
+# Required: Admin password for VM authentication
+# Password requirements:
+# - Length: 12-72 characters
+# - Must contain 3 of: uppercase, lowercase, numbers, special characters
+# - Cannot contain username or parts of username
+# Example: "MySecureP@ssw0rd2024!"
+admin_password = "REPLACE_WITH_YOUR_SECURE_PASSWORD"
+
+# Optional: Customize these values if needed
+# resource_group_name = "rg-otis-project1"
+# location = "eastus"
+# vm_name = "otis-project1-vm"
+# vm_size = "Standard_B2s"
+# admin_username = "azureuser"
+# os_disk_size_gb = 20
+
+# Optional: Customize networking if needed
+# vnet_address_space = ["10.0.0.0/16"]
+# subnet_address_prefix = "10.0.1.0/24"
+
+# Optional: Add or override tags
+# common_tags = {
+#   Environment = "Production"
+#   ManagedBy   = "Terraform"
+#   Owner       = "DevOps Team"
+#   Project     = "OTIS Project 1"
+#   Ticket      = "INC0010018"
+# }
+
+# ============================================================================
+# SECURITY NOTES
+# ============================================================================
+# 
+# For Production/Automation:
+# - Use environment variables: export TF_VAR_admin_password='YourPassword'
+# - Use Azure Key Vault to store passwords securely
+# - Never commit actual passwords to Git
+# - Use strong, randomly generated passwords
+# - Rotate passwords regularly according to your security policy
+# 
+# Example environment variable usage:
+#   export TF_VAR_admin_password='YourSecureP@ssw0rd123!'
+#   terraform apply
+# 
+# Example Azure Key Vault integration:
+#   Store password in Key Vault, then reference in Terraform:
+#   
+#   data "azurerm_key_vault_secret" "admin_password" {
+#     name         = "vm-admin-password"
+#     key_vault_id = var.key_vault_id
+#   }
+# 
+# ============================================================================

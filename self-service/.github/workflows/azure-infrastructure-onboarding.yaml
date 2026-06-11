@@ -78,6 +78,8 @@ jobs:
 
           mkdir -p "$BASE_DIR/resource_groups/$TARGET_DIR"
 
+          pwd && ls -la "$BASE_DIR/resource_groups/$TARGET_DIR"
+
           cat > "$TARGET_DIR/main.tf" <<EOF 
           //Terraform resources for ${RG}
           //Replace variables as needed.    

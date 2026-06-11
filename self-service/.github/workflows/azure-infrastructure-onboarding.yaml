@@ -1,127 +1,86 @@
 name: Provision AKS (Terraform)
 
+name: Add resource group and open PR
+
 on:
   workflow_dispatch:
     inputs:
-      project_name:
-        description: 'Project name (property)'
-        required: true
-      service_name:
-        description: 'Service name (property)'
-        required: true
-      tech_stack:
-        description: 'Tech stack (e.g. python)'
-        required: true
-      python_version:
-        description: 'Python version (e.g. 3.11)'
-        required: true
-      deploy_to:
-        description: 'Deployment target (e.g. AKS)'
-        required: true
-      location:
-        description: 'Azure region (e.g. eastus)'
-        required: true
-      environment:
-        description: 'Deployment environment (e.g. dev/staging/prod)'
-        required: true
       resource_group:
-        description: 'Optional explicit resource group name (if not set, workflow will derive one)'
+        description: 'Resource group directory name to create under self-service/azure-infrastructure/resource_groups'
+        required: true
+      base_branch:
+        description: 'Target branch for the PR'
         required: false
-      tf_path:
-        description: 'Path to Terraform templates (working directory)'
-        required: false
-        default: 'templates/templates/service-composer/skeleton'
+        default: 'main'
 
 jobs:
-  apply:
+  create-resource-group:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-    env:
-      AZURE_CORE_OUTPUT: none
-      ARM_USE_AZURECLI: 'true'
+      contents: write
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
-      - name: Secrets check
+      - name: Create resource group folder and push branch
+        id: create
         run: |
-          set -e
-          echo "Checking for Azure authentication secrets..."
-          if [ -z "${{ secrets.AZURE_CREDENTIALS }}" ]; then
-            if [ -z "${{ secrets.AZURE_CLIENT_ID }}" ] || [ -z "${{ secrets.AZURE_CLIENT_SECRET }}" ] || [ -z "${{ secrets.AZURE_SUBSCRIPTION_ID }}" ] || [ -z "${{ secrets.AZURE_TENANT_ID }}" ]; then
-              echo "ERROR: No Azure auth secrets found. Set AZURE_CREDENTIALS or set AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_SUBSCRIPTION_ID, and AZURE_TENANT_ID as repository secrets."
-              exit 1
-            fi
-          fi
+          set -euo pipefail
+          RG="${{ github.event.inputs.resource_group }}"
+          BASE_BRANCH="${{ github.event.inputs.base_branch }}"
+          TARGET_DIR="self-service/azure-infrastructure/resource_groups/${RG}"
 
-      - name: Check Terraform variable files
-        working-directory: ${{ github.event.inputs.tf_path }}
-        run: |
-          set -e
-          echo "Checking for *.tfvars files in $(pwd)..."
-          shopt -s nullglob || true
-          files=( *.tfvars *.tfvars.json )
-          if [ ${#files[@]} -eq 0 ]; then
-            echo "ERROR: No .tfvars files found in the Terraform working directory. Add a terraform.tfvars (or *.tfvars) file or change tf_path to a folder that contains one."
+          if [ -d "$TARGET_DIR" ]; then
+            echo "Resource group folder already exists: $TARGET_DIR"
             exit 1
           fi
 
-      - name: Azure Login (service principal creds)
-        if: ${{ secrets.AZURE_CREDENTIALS != '' }}
-        uses: azure/login@v3
+          mkdir -p "$TARGET_DIR"
+
+          cat > "$TARGET_DIR/README.md" <<'EOF'
+          # Resource group: ${RG}
+
+          Add Terraform files for this resource group under this directory.
+          EOF
+
+          cat > "$TARGET_DIR/terraform.tfvars.example" <<'EOF'
+          # example variables for ${RG}
+          resource_group_name = "${RG}"
+          location = "<region>"
+          EOF
+
+          cat > "$TARGET_DIR/main.tf" <<'EOF'
+          // Terraform resources for ${RG}
+          // Replace variables as needed.
+          resource "azurerm_resource_group" "main" {
+            name     = var.resource_group_name
+            location = var.location
+          }
+          EOF
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          BRANCH="add-rg-${RG}-$(date +%s)"
+          git checkout -b "$BRANCH"
+          git add "$TARGET_DIR"
+          git commit -m "Add resource group folder: ${RG}"
+          git push --set-upstream origin "$BRANCH"
+
+          echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v4
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
-        with:
-          terraform_version: '1.6.0'
-
-      - name: Terraform Init
-        working-directory: ${{ github.event.inputs.tf_path }}
-        run: terraform init -input=false
-
-      - name: Terraform Validate
-        working-directory: ${{ github.event.inputs.tf_path }}
-        run: |
-          set -e
-          # derive resource group if not provided
-          RG="${{ github.event.inputs.resource_group }}"
-          if [ -z "$RG" ]; then
-            RG="${{ github.event.inputs.project_name }}-${{ github.event.inputs.environment }}-rg"
-          fi
-          ENABLE_AKS="false"
-          if [ "${{ github.event.inputs.deploy_to }}" = "AKS" ]; then
-            ENABLE_AKS="true"
-          fi
-          VARS="-var project_name='${{ github.event.inputs.project_name }}' -var resource_group='${RG}' -var location='${{ github.event.inputs.location }}' -var environment='${{ github.event.inputs.environment }}' -var enable_aks=${ENABLE_AKS}"
-          VARS="$VARS -var service_name='${{ github.event.inputs.service_name }}' -var tech_stack='${{ github.event.inputs.tech_stack }}' -var python_version='${{ github.event.inputs.python_version }}'"
-          echo "Running terraform validate with: $VARS"
-          terraform validate $VARS
-
-      - name: Terraform Plan
-        working-directory: ${{ github.event.inputs.tf_path }}
-        run: |
-          set -e
-          # derive resource group if not provided
-          RG="${{ github.event.inputs.resource_group }}"
-          if [ -z "$RG" ]; then
-            RG="${{ github.event.inputs.project_name }}-${{ github.event.inputs.environment }}-rg"
-          fi
-          # enable aks if deploy_to == AKS
-          ENABLE_AKS="false"
-          if [ "${{ github.event.inputs.deploy_to }}" = "AKS" ]; then
-            ENABLE_AKS="true"
-          fi
-          VARS="-var project_name='${{ github.event.inputs.project_name }}' -var resource_group='${RG}' -var location='${{ github.event.inputs.location }}' -var environment='${{ github.event.inputs.environment }}' -var enable_aks=${ENABLE_AKS}"
-          # pass through optional service/tech details
-          VARS="$VARS -var service_name='${{ github.event.inputs.service_name }}' -var tech_stack='${{ github.event.inputs.tech_stack }}' -var python_version='${{ github.event.inputs.python_version }}'"
-          echo "Running terraform plan with: $VARS"
-          terraform plan -input=false $VARS -out=plan.tfplan
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "Add resource group ${{ github.event.inputs.resource_group }}"
+          title: "Add resource group ${{ github.event.inputs.resource_group }}"
+          body: "Automated PR to add resource group folder `${{ github.event.inputs.resource_group }}`."
+          base: ${{ github.event.inputs.base_branch }}
+          head: ${{ steps.create.outputs.branch }}
 
       - name: Terraform Apply
-        working-directory: ${{ github.event.inputs.tf_path }}
+        working-directory: ${{ env.TF_WORKDIR }}
         run: terraform apply -input=false -auto-approve plan.tfplan
 
       - name: Retrieve kubeconfig (if AKS)
@@ -131,7 +90,7 @@ jobs:
           azcliversion: '2.55.0'
           inlineScript: |
             set -e
-            cd "${{ github.event.inputs.tf_path }}" || true
+            cd "${TF_WORKDIR:-${{ github.event.inputs.tf_path }}}" || true
             AKS_NAME=$(terraform output -raw aks_name 2>/dev/null || echo "${{ github.event.inputs.service_name }}")
             RG=$(terraform output -raw resource_group 2>/dev/null || echo "${{ github.event.inputs.project_name }}-rg")
             echo "Using resource group: $RG and cluster name: $AKS_NAME"

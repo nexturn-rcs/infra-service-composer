@@ -1,5 +1,6 @@
 name: Provision AKS (Terraform)
 
+# Manual dispatch enabled
 on:
   workflow_dispatch:
     inputs:

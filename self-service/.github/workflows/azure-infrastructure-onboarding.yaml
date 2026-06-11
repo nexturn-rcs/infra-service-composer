@@ -61,9 +61,8 @@ jobs:
           TECH="${{ github.event.inputs.tech_stack }}"
           PYVER="${{ github.event.inputs.python_version }}"
           DEPLOY_TO="${{ github.event.inputs.deploy_to }}"
-          TARGET_DIR="self-service/azure-infrastructure/resource_groups/${RG}"
-
-          if [ -z "$RG" ]; then
+          TARGET_DIR="${{ github.event.inputs.resource_group }}"
+          if [ -z "$TARGET_DIR" ]; then
             echo "No resource_group input provided; skipping creation"
             exit 0
           fi

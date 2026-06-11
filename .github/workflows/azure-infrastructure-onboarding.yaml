@@ -87,7 +87,7 @@ jobs:
 Add Terraform files for this resource group under this directory.
 EOF
 
-          cat > "$TARGET_DIR/terraform.tfvars.example" <<EOF
+cat > "$TARGET_DIR/terraform.tfvars.example" <<EOF
 # example variables for ${RG}
 resource_group_name = "${RG}"
 location = "<region>"
@@ -107,7 +107,7 @@ resource "azurerm_resource_group" "main" {
 }
 EOF
 
-          cat > "$TARGET_DIR/variables.tf" <<'EOF'
+cat > "$TARGET_DIR/variables.tf" <<'EOF'
 variable "resource_group_name" {
   description = "Name of the Azure resource group"
   type        = string

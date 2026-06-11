@@ -62,9 +62,9 @@ jobs:
           TECH="${{ github.event.inputs.tech_stack }}"
           PYVER="${{ github.event.inputs.python_version }}"
           DEPLOY_TO="${{ github.event.inputs.deploy_to }}"
+          TARGET_DIR="${{ github.event.inputs.resource_group }}"
           # create resource group folder under ./azure-infrastructure
           BASE_DIR="./azure-infrastructure"
-          TARGET_DIR="${{ github.event.inputs.resource_group }}"
 
           if [ -z "$RG" ]; then
             echo "No resource_group input provided; skipping creation"
@@ -76,7 +76,7 @@ jobs:
             exit 1
           fi
 
-          mkdir -p "$BASE_DIR/$TARGET_DIR/resource_groups/${RG}"
+          mkdir -p "$BASE_DIR/resource_groups/$TARGET_DIR""
 
           cat > "$TARGET_DIR/main.tf" <<EOF 
           //Terraform resources for ${RG}
@@ -310,15 +310,15 @@ jobs:
           echo "branch=$BRANCH" >> $GITHUB_OUTPUT
 
       - name: Create Pull Request for new resource group folder
-        uses: peter-evans/create-pull-request@v4
+        uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "Add resource group ${{ github.event.inputs.resource_group }}"
           title: "Add resource group ${{ github.event.inputs.resource_group }}"
           body: "Automated PR to add resource group folder `${{ github.event.inputs.resource_group }}`."
           base: main
-          #head: ${{ steps.create.outputs.branch }}
-
+          branch: create-pull-request/patch
+          branch-suffix: random
 
       - name: Check Terraform variable files
         working-directory: ${{ github.event.inputs.tf_path }}

@@ -82,102 +82,215 @@ jobs:
 
           mkdir -p "$TARGET_DIR"
 
-            printf '%s\n\n%s\n' "# Resource group: ${RG}" "Add Terraform files for this resource group under this directory." > "$TARGET_DIR/README.md"
+          cat > "$TARGET_DIR/main.tf" <<EOF 
+          //Terraform resources for ${RG}
+          //Replace variables as needed.    
+          resource "azurerm_resource_group" "main" {
+            name     = var.resource_group_name
+            location = var.location
+          } 
+            EOF
+          cat > "$TARGET_DIR/variables.tf" <<'EOF'
+          variable "resource_group_name" {
+            description = "Name of the Azure resource group"
+            type        = string
+          }
 
-            printf '%s\n' "# example variables for ${RG}" "resource_group_name = \"${RG}\"" "location = \"<region>\"" "project_name = \"${PROJECT}\"" "service_name = \"${SERVICE}\"" "tech_stack = \"${TECH}\"" "python_version = \"${PYVER}\"" "deploy_to = \"${DEPLOY_TO}\"" > "$TARGET_DIR/terraform.tfvars.example"
+          variable "location" {
+            description = "Azure region for resources"
+            type        = string
+          } 
+          variable "project_name" {
+            description = "Project identifier"
+            type        = string
+            default     = ""
+          }
+          variable "service_name" {
+            description = "Service identifier"
+            type        = string
+            default     = ""
+          }
+          variable "tech_stack" {
+            description = "Technology stack (e.g. python)"
+            type        = string
+            default     = ""
+          }
+          variable "python_version" {
+            description = "Python runtime version"
+            type        = string
+            default     = ""
+          }
+          variable "deploy_to" {
+            description = "Deployment target (e.g. AKS)"
+            type        = string
+            default     = ""
+          }
+          EOF
+          Resource group: ${RG} 
 
-          cat > "$TARGET_DIR/main.tf" <<EOF
-// Terraform resources for ${RG}
-// Replace variables as needed.
-resource "azurerm_resource_group" "main" {
-  name     = var.resource_group_name
-  location = var.location
-}
-EOF
+          cat > $TARGET_DIR/outputs.tf <<'EOF'
+          output "resource_group_name" {
+            description = "The resource group name"
+            value       = var.resource_group_name
+          }
+            EOF
+          if [ "${DEPLOY_TO}" = "AKS" ] || [ "${DEPLOY_TO}" = "aks" ]; then
+            cat > "$TARGET_DIR/aks.tf" <<EOF
+          provider "azurerm" {
+            features = {}
+          }
+          resource "azurerm_kubernetes_cluster" "aks" {
+            name                = "${PROJECT}-${SERVICE}-aks"
+            location            = var.location
+            resource_group_name = var.resource_group_name
 
-cat > "$TARGET_DIR/variables.tf" <<'EOF'
-variable "resource_group_name" {
-  description = "Name of the Azure resource group"
-  type        = string
-}
+            default_node_pool {
+              name       = "default"
+              node_count = 1
+              vm_size    = "Standard_DS2_v2"
+            }
 
-variable "location" {
-  description = "Azure region for resources"
-  type        = string
-}
+            identity {
+              type = "SystemAssigned"
+            }
 
-variable "project_name" {
-  description = "Project identifier"
-  type        = string
-  default     = ""
-}
+            tags = {
+              project = var.project_name
+              service = var.service_name
+              tech    = var.tech_stack
+            }
+          }
+            EOF
 
-variable "service_name" {
-  description = "Service identifier"
-  type        = string
-  default     = ""
-}
-
-variable "tech_stack" {
-  description = "Technology stack (e.g. python)"
-  type        = string
-  default     = ""
-}
-
-variable "python_version" {
-  description = "Python runtime version"
-  type        = string
-  default     = ""
-}
-
-variable "deploy_to" {
-  description = "Deployment target (e.g. AKS)"
-  type        = string
-  default     = ""
-}
-EOF
+            cat >> "$TARGET_DIR/outputs.tf" <<'EOF'
+            output "aks_cluster_name" {
+            description = "AKS cluster name (if created)"
+            value       = azurerm_kubernetes_cluster.aks.name
+            }
+            EOF
 
           cat > "$TARGET_DIR/outputs.tf" <<'EOF'
-output "resource_group_name" {
-  description = "The resource group name"
-  value       = var.resource_group_name
-}
-EOF
+          output "resource_group_name" {
+          description = "The resource group name"
+          value       = var.resource_group_name}
+          EOF
 
           if [ "${DEPLOY_TO}" = "AKS" ] || [ "${DEPLOY_TO}" = "aks" ]; then
             cat > "$TARGET_DIR/aks.tf" <<EOF
-provider "azurerm" {
-  features = {}
-}
+            provider "azurerm" {
+            features = {}
+            }
+            
+            resource "azurerm_kubernetes_cluster" "aks" {
+            name                = "${PROJECT}-${SERVICE}-aks"
+            location            = var.location
+            resource_group_name = var.resource_group_name
+            
+            default_node_pool {
+            name       = "default"
+            node_count = 1
+            vm_size    = "Standard_DS2_v2"
+            }
+            
+            identity {
+            type = "SystemAssigned"
+            
+            }
 
-resource "azurerm_kubernetes_cluster" "aks" {
-  name                = "${PROJECT}-${SERVICE}-aks"
-  location            = var.location
-  resource_group_name = var.resource_group_name
+            tags = {
+            project = var.project_name
+            service = var.service_name
+            tech    = var.tech_stack
+            }
+            }
+            EOF
 
-  default_node_pool {
-    name       = "default"
-    node_count = 1
-    vm_size    = "Standard_DS2_v2"
-  }
-
-  identity {
-    type = "SystemAssigned"
-  }
-
-  tags = {
-    project = var.project_name
-    service = var.service_name
-    tech    = var.tech_stack
-  }
-}
-EOF
             cat >> "$TARGET_DIR/outputs.tf" <<'EOF'
-output "aks_cluster_name" {
-  description = "AKS cluster name (if created)"
-  value       = azurerm_kubernetes_cluster.aks.name
-}
-EOF
+            output "aks_cluster_name" {
+            description = "AKS cluster name (if created)" 
+            value       = azurerm_kubernetes_cluster.aks.name
+            }
+            EOF
+          fi
+          cat > "$TARGET_DIR/variables.tf" <<'EOF'
+          variable "resource_group_name" {
+          description = "Name of the Azure resource group"
+          type        = string
+          default     = ""
+          }
+          EOF
+          cat > "$TARGET_DIR/variables.tf" <<'EOF'
+          variable "location" { 
+          description = "Azure region for resources"
+          type        = string
+          default     = ""
+          }
+          EOF
+
+          cat > "$TARGET_DIR/variables.tf" <<'EOF'
+          variable "project_name" {  
+          description = "Project identifier"
+          type        = string
+          default     = ""
+          }
+          EOF
+          cat > "$TARGET_DIR/variables.tf" <<'EOF'
+          variable "service_name" {
+          description = "Service identifier"
+          type        = string
+          default     = ""
+          }
+          EOF
+          cat > "$TARGET_DIR/variables.tf" <<'EOF'
+          variable "tech_stack" {
+          description = "Technology stack (e.g. python)"
+          type        = string
+          default     = ""
+          }
+          EOF
+          cat > "$TARGET_DIR/variables.tf" <<'EOF'
+          variable "python_version" {
+          description = "Python runtime version"
+          type        = string
+          default     = ""
+          }
+          EOF
+          cat > "$TARGET_DIR/variables.tf" <<'EOF'
+          variable "deploy_to" {
+          description = "Deployment target (e.g. AKS)"
+          type        = string
+          default     = ""
+          }
+          EOF
+
+          cat >> "$TARGET_DIR/variables.tf" <<'EOF'
+          variable "location" {
+          description = "Location of the Azure resource group"
+          type        = string
+          default     = "East US"
+          }
+          EOF
+          cat >> "$TARGET_DIR/variables.tf" <<'EOF'
+          variable "project_name" {
+          description = "Name of the project"
+          type        = string
+          default     = ""
+          }
+          EOF
+          cat >> "$TARGET_DIR/variables.tf" <<'EOF'
+          variable "service_name" {
+          description = "Name of the service"
+          type        = string
+          default     = ""
+          }
+          EOF
+          cat >> "$TARGET_DIR/variables.tf" <<'EOF'
+          variable "tech_stack" {
+          description = "Technology stack used"
+          type        = string
+          default     = ""
+          }
+          EOF
           fi
 
           git config user.name "github-actions[bot]"
@@ -227,7 +340,7 @@ EOF
       - name: Azure Login (service principal creds)
         uses: azure/login@v3
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          secrets ${{ secrets.AZURE_CREDENTIALS }}
 
 
       - name: Setup Terraform

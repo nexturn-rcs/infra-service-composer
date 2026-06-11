@@ -1,0 +1,104 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+
+metadata:
+  name: python-service
+  title: Python Service
+  description: Create a Python application with CI/CD and AKS deployment
+
+spec:
+  owner: platform-team
+  type: service
+
+  parameters:
+    - title: Application Information
+
+      required:
+        - owner
+        - repoName
+        - projectName
+        - pythonVersion
+
+      properties:
+
+        owner:
+          title: Repository Owner
+          type: string
+          description: GitHub organization or user
+
+        repoName:
+          title: Repository Name
+          type: string
+          description: Name of the GitHub repository
+
+        projectName:
+          title: Project Name
+          type: string
+          description: Project/application group (used for AKS namespace generation)
+
+        pythonVersion:
+          title: Python Version
+          type: string
+          enum:
+            - "3.11"
+            - "3.12"
+            - "3.13"
+
+        description:
+          title: Description
+          type: string
+
+  steps:
+
+    - id: fetch
+      name: Fetch Template
+      action: fetch:template
+
+      input:
+        url: ./skeleton
+
+        copyWithoutTemplating:
+          - .github/workflows/**
+
+        values:
+          owner: ${{ parameters.owner }}
+          repoName: ${{ parameters.repoName }}
+          projectName: ${{ parameters.projectName }}
+          pythonVersion: ${{ parameters.pythonVersion }}
+          description: ${{ parameters.description }}
+
+    - id: publish
+      name: Create Repository
+      action: publish:github
+
+      input:
+        repoUrl: github.com?owner=${{ parameters.owner }}&repo=${{ parameters.repoName }}
+        defaultBranch: develop
+        description: ${{ parameters.description }}
+        repoVariables:
+          PROJECT_NAME: ${{ parameters.projectName }}
+          PYTHON_VER: ${{ parameters.pythonVersion }}
+          ACR_NAME: nextopsacrdemo
+
+        secrets:
+          AZURE_CLIENT_ID: ${{ environment.secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ environment.secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ environment.secrets.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ environment.secrets.AZURE_SUBSCRIPTION_ID }}
+
+    - id: register
+      name: Register Catalog
+      action: catalog:register
+
+      input:
+        repoContentsUrl: ${{ steps.publish.output.repoContentsUrl }}
+        catalogInfoPath: /catalog-info.yaml
+
+  output:
+    links:
+      - title: Repository
+        url: ${{ steps.publish.output.remoteUrl }}
+
+      - title: Open in Catalog
+        icon: catalog
+        entityRef: ${{ steps.register.output.entityRef }}

@@ -1,0 +1,92 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+
+metadata:
+  name: service-composer
+  title: Azure Service Composer
+  description: Create a full Azure workload stack (AKS, DB, Storage, etc.)
+
+spec:
+  owner: platform-team
+  type: infrastructure
+
+  parameters:
+
+    - title: Service Definition
+
+      required:
+        - projectName
+        - environment
+        - location
+
+      properties:
+
+        projectName:
+          type: string
+
+        environment:
+          type: string
+          enum: [dev, qa, prod]
+
+        location:
+          type: string
+          default: eastus
+
+        enableAKS:
+          type: boolean
+          default: true
+
+        enableStorage:
+          type: boolean
+          default: false
+
+        enableSQL:
+          type: boolean
+          default: false
+
+        enableKeyVault:
+          type: boolean
+          default: false
+  steps:
+    - id: fetch
+      name: Generate Infra Stack
+      action: fetch:template
+
+      input:
+        url: ./skeleton
+
+        values:
+          projectName: ${{ parameters.projectName }}
+          environment: ${{ parameters.environment }}
+          location: ${{ parameters.location }}
+          resourceGroup: rg-${{ parameters.projectName }}-${{ parameters.environment }}
+
+          enableAKS: ${{ parameters.enableAKS }}
+          enableStorage: ${{ parameters.enableStorage }}
+          enableSQL: ${{ parameters.enableSQL }}
+          enableKeyVault: ${{ parameters.enableKeyVault }}
+
+    - id: pr
+      name: Create Pull Request
+      action: publish:github:pull-request
+
+      input:
+        repoUrl: github.com?owner=PrakashNexTurn&repo=azure-infrastructure
+        branchName: infra/${{ parameters.projectName }}
+        title: Service Stack - ${{ parameters.projectName }}
+        description: |
+          Azure Service Composer Deployment
+          Project: ${{ parameters.projectName }}
+          Environment: ${{ parameters.environment }}
+    
+          Components:
+          - AKS: ${{ parameters.enableAKS }}
+          - Storage: ${{ parameters.enableStorage }}
+          - SQL: ${{ parameters.enableSQL }}
+          - Key Vault: ${{ parameters.enableKeyVault }}
+        targetPath: resource_groups/rg-${{ parameters.projectName }}-${{ parameters.environment }}
+
+  output:
+    links:
+      - title: Repository
+        url: ${{ steps.pr.output.remoteUrl }}

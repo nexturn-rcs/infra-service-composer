@@ -58,6 +58,23 @@ terraform plan -var-file=terraform.tfvars
 terraform apply -var-file=terraform.tfvars
 ```
 
+Run via GitHub CLI (example)
+
+From the repository root run:
+
+```bash
+gh workflow run self-service/.github/workflows/azure-infrastructure-onboarding.yaml \
+	--field project_name=otis-demo \
+	--field service_name=demo-service-creation-aks \
+	--field tech_stack=python \
+	--field python_version=3.14.6 \
+	--field deploy_to=AKS \
+	--field location=uscentral \
+	--field environment=dev
+```
+
+Note: this requires the GitHub CLI (`gh`) installed and authenticated (`gh auth login`) with repository access.
+
 Notes:
 
 - The workflow maps `deploy_to == 'AKS'` to `enable_aks = true` and will attempt to fetch kubeconfig after apply when AKS is enabled.
